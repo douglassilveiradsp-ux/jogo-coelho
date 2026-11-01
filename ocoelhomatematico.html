@@ -1,0 +1,216 @@
+!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>O Coelho Matemático</title>
+<!-- Jogo criado por Douglas - Pesquisador de Jogos -->
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Segoe UI",Arial,sans-serif;background:#bfe9ff;min-height:100vh;display:flex;flex-direction:column;align-items:center;color:#2b2b2b}
+  header{width:100%;max-width:900px;display:flex;justify-content:space-between;align-items:center;padding:14px 18px;font-weight:700}
+  header h1{font-size:1.4rem;color:#1b5e20}
+  .hud span{background:#fff;border-radius:20px;padding:6px 14px;margin-left:8px;box-shadow:0 2px 4px #0002}
+  #scene{position:relative;width:100%;max-width:900px;height:240px;background:linear-gradient(#8fd3ff 0%,#d9f3ff 60%,#7ed957 60%,#5cb83e 100%);border-radius:18px;overflow:hidden;box-shadow:0 4px 12px #0003}
+  .sun{position:absolute;top:14px;right:24px;font-size:2.6rem}
+  .cloud{position:absolute;font-size:2.4rem;opacity:.9;animation:drift 30s linear infinite}
+  .cloud.c2{top:50px;animation-duration:45s;animation-delay:-15s}
+  @keyframes drift{from{left:-10%}to{left:105%}}
+  #track{position:absolute;left:0;right:0;bottom:34px;height:50px}
+  .stone{position:absolute;bottom:0;width:6.4%;height:22px;background:#9e9e9e;border-radius:50%;border-bottom:5px solid #757575;transform:translateX(-50%);text-align:center;font-size:.7rem;line-height:22px;color:#fff;font-weight:700}
+  .stone.done{background:#66bb6a;border-color:#388e3c}
+  #goal{position:absolute;right:1.5%;bottom:48px;font-size:2.4rem}
+  #rabbit{position:absolute;bottom:42px;font-size:3rem;transform:translateX(-50%);transition:left .75s ease-in-out;z-index:3;line-height:1}
+  #rabbit .r{display:inline-block}
+  #rabbit.jump .r{animation:hop .75s ease-in-out}
+  @keyframes hop{0%{transform:translateY(0) rotate(0)}50%{transform:translateY(-90px) rotate(-12deg)}100%{transform:translateY(0) rotate(0)}}
+  #rabbit.shake .r{animation:shake .5s}
+  @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-10px)}40%{transform:translateX(10px)}60%{transform:translateX(-8px)}80%{transform:translateX(8px)}}
+  #panel{width:100%;max-width:900px;background:#fff;border-radius:18px;margin:16px 0;padding:22px;box-shadow:0 4px 12px #0003;text-align:center}
+  #qnum{color:#2e7d32;font-weight:700;margin-bottom:6px}
+  #question{font-size:2.6rem;font-weight:800;margin:6px 0 18px}
+  #options{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+  .opt{font-size:1.6rem;font-weight:700;padding:16px;border:none;border-radius:14px;background:#ffb74d;color:#3e2723;cursor:pointer;box-shadow:0 4px 0 #f57c00;transition:transform .1s}
+  .opt:hover{transform:translateY(-2px)}
+  .opt:active{transform:translateY(3px);box-shadow:0 1px 0 #f57c00}
+  .opt.ok{background:#66bb6a;box-shadow:0 4px 0 #2e7d32;color:#fff}
+  .opt.bad{background:#ef5350;box-shadow:0 4px 0 #b71c1c;color:#fff}
+  #msg{height:28px;margin-top:14px;font-weight:700;font-size:1.1rem}
+  #end{display:none}
+  #end h2{font-size:2rem;color:#1b5e20;margin-bottom:8px}
+  #end p{font-size:1.2rem;margin:6px 0}
+  .btn{margin-top:14px;font-size:1.2rem;font-weight:700;padding:12px 28px;border:none;border-radius:30px;background:#43a047;color:#fff;cursor:pointer;box-shadow:0 4px 0 #2e7d32}
+  footer{font-size:.85rem;color:#37474f;margin-bottom:14px}
+  @media(max-width:560px){#question{font-size:2rem}.opt{font-size:1.3rem}#scene{height:210px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>🐰 O Coelho Matemático</h1>
+  <div class="hud"><span>⭐ <b id="score">0</b></span><span>Questão <b id="cur">1</b>/10</span></div>
+</header>
+ 
+<div id="scene">
+  <div class="sun">☀️</div>
+  <div class="cloud" style="top:16px">☁️</div>
+  <div class="cloud c2">☁️</div>
+  <div id="track"></div>
+  <div id="goal">🥕</div>
+  <div id="rabbit"><span class="r">🐰</span></div>
+</div>
+ 
+<div id="panel">
+  <div id="game">
+    <div id="qnum"></div>
+    <div id="question"></div>
+    <div id="options"></div>
+    <div id="msg"></div>
+  </div>
+  <div id="end">
+    <h2>🥕 O coelho chegou na cenoura!</h2>
+    <p id="final"></p>
+    <p id="rank"></p>
+    <button class="btn" onclick="start()">Jogar de novo</button>
+  </div>
+</div>
+ 
+<footer>Jogo criado por Douglas — Pesquisador de Jogos</footer>
+ 
+<script>
+// As 10 questões, na ordem pedida. "opts" são as alternativas (a correta é "ans").
+const QUESTIONS = [
+  {q:"5 + 5",   ans:10,   opts:[10,9,11,15]},
+  {q:"7 × 7",   ans:49,   opts:[42,49,56,47]},
+  {q:"8 × 8",   ans:64,   opts:[54,72,64,56]},
+  {q:"96 + 9",  ans:105,  opts:[104,105,115,95]},
+  {q:"897 × 3", ans:2691, opts:[2591,2691,2681,2791]},
+  {q:"80 − 5",  ans:75,   opts:[85,76,75,65]},
+  {q:"96 + 5",  ans:101,  opts:[101,91,100,111]},
+  {q:"9 + 9",   ans:18,   opts:[17,19,81,18]},
+  {q:"5 − 3",   ans:2,    opts:[8,3,1,2]},
+  {q:"45 − 5",  ans:40,   opts:[50,41,40,35]}
+];
+ 
+const $ = id => document.getElementById(id);
+const track = $("track"), rabbit = $("rabbit");
+let idx = 0, score = 0, tries = 0, locked = false;
+ 
+// ---- sons simples (Web Audio) ----
+let ac;
+function beep(f, d=0.15, type="sine"){
+  try{
+    ac = ac || new (window.AudioContext||window.webkitAudioContext)();
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = type; o.frequency.value = f;
+    g.gain.setValueAtTime(.15, ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(.001, ac.currentTime + d);
+    o.connect(g); g.connect(ac.destination);
+    o.start(); o.stop(ac.currentTime + d);
+  }catch(e){}
+}
+ 
+// posição (em %) de cada pedra: 0 = início, 1..10 = após cada questão
+const pos = i => 6 + i * (84 / 10);
+ 
+function buildTrack(){
+  track.innerHTML = "";
+  for(let i = 0; i <= 10; i++){
+    const s = document.createElement("div");
+    s.className = "stone" + (i === 0 ? " done" : "");
+    s.style.left = pos(i) + "%";
+    s.textContent = i === 0 ? "" : i;
+    s.id = "st" + i;
+    track.appendChild(s);
+  }
+}
+ 
+function placeRabbit(i){ rabbit.style.left = pos(i) + "%"; }
+ 
+function shuffle(a){
+  a = a.slice();
+  for(let i = a.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+ 
+function showQuestion(){
+  const Q = QUESTIONS[idx];
+  tries = 0; locked = false;
+  $("cur").textContent = idx + 1;
+  $("qnum").textContent = "Questão " + (idx + 1) + " de 10";
+  $("question").textContent = Q.q + " = ?";
+  $("msg").textContent = "";
+  const box = $("options");
+  box.innerHTML = "";
+  shuffle(Q.opts).forEach(v => {
+    const b = document.createElement("button");
+    b.className = "opt";
+    b.textContent = v;
+    b.onclick = () => answer(b, v);
+    box.appendChild(b);
+  });
+}
+ 
+function answer(btn, v){
+  if(locked) return;
+  const Q = QUESTIONS[idx];
+  if(v === Q.ans){
+    locked = true;
+    btn.classList.add("ok");
+    const pts = tries === 0 ? 10 : 5;
+    score += pts;
+    $("score").textContent = score;
+    $("msg").style.color = "#2e7d32";
+    $("msg").textContent = "Acertou! +" + pts + " pontos. O coelho vai pular! 🐇";
+    beep(660); setTimeout(() => beep(880), 120);
+    setTimeout(hop, 600);
+  }else{
+    tries++;
+    btn.classList.add("bad");
+    btn.disabled = true;
+    $("msg").style.color = "#c62828";
+    $("msg").textContent = "Ops! Tente de novo. 🤔";
+    beep(180, .3, "square");
+    rabbit.classList.remove("shake"); void rabbit.offsetWidth; rabbit.classList.add("shake");
+  }
+}
+ 
+function hop(){
+  idx++;
+  placeRabbit(idx);
+  rabbit.classList.remove("jump"); void rabbit.offsetWidth; rabbit.classList.add("jump");
+  setTimeout(() => {
+    $("st" + idx).classList.add("done");
+    if(idx >= QUESTIONS.length) finish(); else showQuestion();
+  }, 800);
+}
+ 
+function finish(){
+  $("game").style.display = "none";
+  $("end").style.display = "block";
+  $("cur").textContent = 10;
+  $("final").textContent = "Você fez " + score + " de 100 pontos!";
+  $("rank").textContent = score === 100 ? "🏆 Perfeito! Coelho Gênio da Matemática!"
+                        : score >= 70 ? "👏 Muito bem, coelho esperto!"
+                        : "💪 Continue treinando, você chega lá!";
+  beep(523,.15); setTimeout(()=>beep(659,.15),150); setTimeout(()=>beep(784,.3),300);
+}
+ 
+function start(){
+  idx = 0; score = 0;
+  $("score").textContent = 0;
+  $("end").style.display = "none";
+  $("game").style.display = "block";
+  buildTrack();
+  rabbit.style.transition = "none";
+  placeRabbit(0);
+  void rabbit.offsetWidth;
+  rabbit.style.transition = "";
+  showQuestion();
+}
+start();
+</script>
+</body>
+</html>
